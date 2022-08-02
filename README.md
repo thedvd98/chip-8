@@ -1,0 +1,1 @@
+chicken-install sdl2
