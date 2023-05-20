@@ -6,4 +6,3 @@
 (define (load-file file)
   (call-with-input-file file
     (lambda (port) (read-u8vector #f port))))
-
