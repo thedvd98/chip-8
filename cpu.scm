@@ -25,9 +25,11 @@
            #xf0 #x80 #xf0 #x80 #xf0   ; E
            #xf0 #x80 #xf0 #x80 #x80)) ; F
 
+(define SCREEN_HEIGHT 64)
+(define SCREEN_WIDTH 32)
 (define screen-memory
-  (make-vector 64
-                 (make-u8vector 32 0)))
+  (make-vector SCREEN_HEIGHT
+                 (make-u8vector SCREEN_WIDTH 0)))
 
 (define PC 0)
 (define I 0) ;; address register 12 bit
@@ -251,17 +253,29 @@
 ;;  The uppermost 256 bytes (0xF00-0xFFF) are reserved for display refresh,
 ;; and the 96 bytes below that (0xEA0-0xEFF) were reserved for the call stack, internal use, and other variables. 
 
-(define (load-mem)
+(define (load-file file)
+  (call-with-input-file file
+    (lambda (port) (read-u8vector #f port))))
+
+(define (init-cpu)
+  (set! PC 0)
+  (set-pseudo-random-seed! "djfadjfkjsdafkqpmvb")
   )
 
 (define (emulate mem)
-  (set! PC 0)
-  (set-pseudo-random-seed! "djfadjfkjsdafkqpmvb")
+  (init-cpu)
   (define (iter)
     (cond
-    ((>= PC (u8vector-length mem)) (print "END"))
-    (else
-     (emulate-si (fetch mem) mem)
-     (iter)
-     )))
+     ((>= PC (u8vector-length mem)) (print "END"))
+     (else
+      (emulate-si (fetch mem) mem)
+      (iter)
+      )))
   (iter))
+
+(define (emulate-instruction mem)
+  (cond
+   ((>= PC (u8vector-length mem)) (print "END"))
+   (else
+    (emulate-si (fetch mem) mem)
+    )))
