@@ -1,29 +1,25 @@
 (import (chicken io)
         (chicken format)
-        srfi-4 srfi-12
+        srfi-4 srfi-12 srfi-18
         miscmacros)
 
 (include "cpu.scm")
 
 (cond-expand
- (chicken-4 (use (prefix sdl2 "sdl2:")))
- (chicken-5 (import (prefix sdl2 "sdl2:"))))
+  (chicken-4 (use (prefix sdl2 "sdl2:")))
+  (chicken-5 (import (prefix sdl2 "sdl2:"))))
 
+;; for passing to wait-event
+;; delay-fn must be a procedure which accepts a number of milliseconds to sleep
+(define (thread-delay! ms) (thread-sleep! (* ms 0.001)))
+
+;; Initialize SDL
 
 (sdl2:set-main-ready!)
 ;;(sdl2:init! '(everything)) ;; or whatever init flags your program needs
 (sdl2:init! '(video events)) ;; or whatever init flags your program needs
 
-
-
-;; Initialize SDL
-(define WIN_HEIGHT 400)
-(define WIN_WIDTH 600)
-
-
-;; Schedule quit! to be automatically called when your program exits normally.
 (on-exit sdl2:quit!)
-
 ;; Call sdl2:quit! and then call the original exception handler if an
 ;; unhandled exception reaches the top level.
 (current-exception-handler
@@ -31,6 +27,10 @@
    (lambda (exception)
      (sdl2:quit!)
      (original-handler exception))))
+
+(define WIN_HEIGHT 400)
+(define WIN_WIDTH 600)
+
 
 (define window
   (sdl2:create-window! "Hello, World!" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
@@ -52,7 +52,7 @@
 (set! (sdl2:event-state 'finger-motion) #f)
 (set! (sdl2:event-state 'multi-gesture) #f)
 
-(define-constant grid-size 20)
+(define-constant grid-size 1)
 
 (define (draw-square x y)
   (sdl2:fill-rect!
@@ -66,8 +66,8 @@
     (do ((j 0 (add1 j)))
         ((>= j w))
       (let ((el (u8vector-ref (vector-ref mem i) j)))
-          (if (= el 1)
-           (draw-square i j))))))
+        (if (= el 1)
+            (draw-square i j))))))
 (define (draw-screen)
   (draw-grid screen-memory SCREEN_HEIGHT SCREEN_WIDTH))
 
@@ -80,25 +80,36 @@
   (sdl2:update-window-surface! window))
 
 ;; MAIN
-(define event (sdl2:make-event))
 
-(let ((done #f)
-      (verbose? #f))
-  (while (not done)
-         (update-screen)
-         (let ((ev (sdl2:wait-event! event)))
-           (when verbose?
-             (print ev))
-           (case (sdl2:event-type ev)
-             ((window)
-              (print "window"))
-             ((quit)
+(define (main-loop)
+  (define event (sdl2:make-event))
+
+  ;; Schedule quit! to be automatically called when your program exits normally.
+    (let ((done #f)
+        (verbose? #f))
+    (while (not done)
+      (update-screen)
+      (thread-sleep! 0.25)
+      (let ((ev (sdl2:wait-event! event thread-delay!)))
+        (when verbose?
+          (print ev))
+        (if (sdl2:quit-event? ev)
+            (sdl2:quit!))
+        (case (sdl2:event-type ev)
+          ((window)
+           '())
+          ((quit)
+           (set! done #t))
+          ((key-down)
+           (case (sdl2:keyboard-event-sym ev)
+             ((escape q)
               (set! done #t))
-             ((key-down)
-              (case (sdl2:keyboard-event-sym ev)
-                ((escape q)
-                 (set! done #t))
-                ((v)
-                 (print "verbose"))))))))
+             ((v)
+              (print "verbose"))))))))
+  (sdl2:quit!))
 
-(sdl2:quit!)
+(define (start-main-loop-in-thread!)
+  (*main-loop-thread* (thread-start! main-loop)))
+
+(define *main-loop-thread* (make-parameter #f))
+

@@ -27,9 +27,20 @@
 
 (define SCREEN_HEIGHT 64)
 (define SCREEN_WIDTH 32)
+(define PIXEL_ON 1)
+(define PIXEL_OFF 0)
+(define SPRITE_LENGTH 8) ;; in pixel
+
+(define (create-screen-memory)
+  (define (loop i li)
+    (if (< i SCREEN_HEIGHT)
+        (loop (+ i 1) (cons (make-u8vector SCREEN_WIDTH 0) li))
+        li
+        ))
+  (loop 0 '()))
+
 (define screen-memory
-  (make-vector SCREEN_HEIGHT
-                 (make-u8vector SCREEN_WIDTH 0)))
+  (list->vector (create-screen-memory)))
 
 (define PC 0)
 (define I 0) ;; address register 12 bit
@@ -78,6 +89,15 @@
   (dec-sp)
   (get-sp))
 
+(define (get-screen-pixel x y)
+  (u8vector-ref (vector-ref screen-memory x) y))
+
+(define (set-screen-pixel x y value)
+  (if (or (> x SCREEN_WIDTH) (> y SCREEN_HEIGHT) (< x 0) (< y 0))
+      #f
+      (u8vector-set!
+       (vector-ref screen-memory x) y (bitwise-xor value (get-screen-pixel x y)))))
+
 (define (clear-screen)
   (let ((ext-len (vector-length screen-memory))
         (int-len (u8vector-length (vector-ref screen-memory 0))))
@@ -86,6 +106,14 @@
       (do ((j 0 (+ j 1)))
           ((= j int-len) '())
         (u8vector-set! (vector-ref screen-memory i) j 0)))))
+
+;; n = altezza sprite
+(define (draw-sprite vx vy n)
+  (do ((b vy (add1 b)))
+      ((> b (+ vy n)) #t)
+   (do ((a vx (add1 a)))
+      ((> a (+ vx SPRITE_LENGTH)) #t)
+    (set-screen-pixel a b PIXEL_ON))))
 
 (define (emulate-si instruction mem)
   (bitmatch instruction
@@ -206,6 +234,7 @@
               (print "rand and " NN)
               (incr-pc))
              (((#xD 4) (X 4) (Y 4) (N 4))
+              (draw-sprite X Y N)
               (print "DRAW " X " " Y " height: " N)
               (incr-pc))
              (((#xE 4) (X 4) (#x9 4) (#xE 4))
