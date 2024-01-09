@@ -1,4 +1,4 @@
-;;https://wiki.call-cc.org/eggref/5/bitstring
+;https://wikiMcall-cc.org/eggref/5/bitstring
 ;;; http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
 ;; https://wiki.call-cc.org/man/5/Module%20srfi-4
 
@@ -25,11 +25,15 @@
            #xf0 #x80 #xf0 #x80 #xf0   ; E
            #xf0 #x80 #xf0 #x80 #x80)) ; F
 
+(define PROGRAM_MEMORY_START 512)
 (define SCREEN_HEIGHT 64)
 (define SCREEN_WIDTH 32)
 (define PIXEL_ON 1)
 (define PIXEL_OFF 0)
 (define SPRITE_LENGTH 8) ;; in pixel
+
+(define (make-memory dim)
+  (make-u8vector dim 0))
 
 (define (create-screen-memory)
   (define (loop i li)
@@ -41,6 +45,8 @@
 
 (define screen-memory
   (list->vector (create-screen-memory)))
+
+(define *MEMORY* (make-memory 4096))
 
 (define PC 0)
 (define I 0) ;; address register 12 bit
@@ -79,15 +85,35 @@
 (define (incr-pc)
   (set-pc (+ (get-pc) 2)))
 
-;; stack only used to store return addresses
+(define (jump-to NNN)
+  (set-pc NNN))
+
+
+;; stack only used to store return addresses of 12bit
 (define (push mem addr)
-  (u8vector-set! mem (get-sp) addr)
+  ;; TESTME
+  (print "push MEM addr:" addr)
+  (let ((msb (bitwise-and (arithmetic-shift addr -8) #x0F))
+        (lsb (bitwise-and addr #xFF)))
+    (u8vector-set! mem (get-sp) lsb)       ;; 8bit
+    (u8vector-set! mem (+ (get-sp) 1) msb) ;; 4bit
+    (print "msb: " msb)
+    (print "lsb: " lsb))
   (inc-sp)
-  (print "push MEM"))
+  (inc-sp))
+
 
 (define (pop)
   (dec-sp)
-  (get-sp))
+  (get-sp)
+  (let ((msb (arithmetic-shift
+              (u8vector-ref mem (get-sp))
+              8))
+        (lsb (u8vector-ref mem (- (get-sp) 1))))
+    (dec-sp)
+    (dec-sp)
+    (bitwise-or msb lsb)))
+
 
 (define (get-screen-pixel x y)
   (u8vector-ref (vector-ref screen-memory x) y))
@@ -118,18 +144,18 @@
 (define (emulate-si instruction mem)
   (bitmatch instruction
             (((#x00EE 16))
-             (set-pc (pop)) ;; TODO check everything is file
+             (set-pc (pop)) ;; TODO check everything is fine
              )
             (((#x00E0 16))
              (clear-screen)
              (incr-pc))
             (((#x0 4) (address 12)) ;; call machine code at address
-             (push mem address)
+             (push mem (get-pc))
              (set-pc address))
             (((#x1 4) (address 12)) ;; jump at address
              (set-pc address))
             (((#x2 4) (address 12)) ;; Call subroutine
-             (push mem address)
+             (push mem (get-pc))
              (set-pc address))
             (((#x3 4) (X 4) (NN 8)) ;; Skip next instruction if VX == NN
              (set-pc (+ (get-pc) 2))
@@ -218,14 +244,18 @@
                 (print "V" X " <<= 1"))
               (incr-pc))
              (((#x9 4) (X  4) (Y 4) (#x0 4))
+              (if (not (= X Y))
+                  (incr-pc)
+                  '())
               (print "Skip the next instruction if VX != VY")
               (incr-pc))
              (((#xA 4) (NNN  12))
-              (set-I NNN)
               (print "I = " NNN)
+              (set-I NNN)
               (incr-pc))
              (((#xB 4) (NNN  12))
               (print "Jump to " NNN)
+              (jump-to NNN)
               (incr-pc))
              (((#xC 4) (X 4) (NN  8))
               (set-register X
@@ -286,10 +316,14 @@
   (call-with-input-file file
     (lambda (port) (read-u8vector #f port))))
 
+(define (load-program-into-memory file mem)
+  (call-with-input-file file
+    (lambda (port) (read-u8vector! #f mem port PROGRAM_MEMORY_START))))
+
 (define (init-cpu)
-  (set! PC 0)
+  (set! PC PROGRAM_MEMORY_START)
   (set-pseudo-random-seed! "djfadjfkjsdafkqpmvb")
-  )
+  (set! *MEMORY* (make-memory 4096)))
 
 (define (emulate mem)
   (init-cpu)
@@ -306,5 +340,10 @@
   (cond
    ((>= PC (u8vector-length mem)) (print "END"))
    (else
-    (emulate-si (fetch mem) mem)
+    (let ((instr (fetch mem)))
+      (emulate-si instr mem))
     )))
+
+(define (test)
+  (load-program-into-memory "PONG" *MEMORY*)
+  (emulate *MEMORY*))
