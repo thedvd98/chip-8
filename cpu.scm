@@ -56,6 +56,7 @@
   (vector 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))
 
 (define (set-pc newpc)
+  (print "set-pc current pc = " PC " to newpc => " newpc)
   (set! PC newpc))
 (define (get-pc)
   PC)
@@ -74,16 +75,27 @@
   I)
 (define (get-sp)
   SP)
+
 (define (inc-sp)
-  (+ SP 1))
+  (set! SP (+ SP 1)))
+
 (define (dec-sp)
-  (- SP 1))
+  (set! SP (- SP 1)))
+
+(define (set-memory mem pos value)
+  (u8vector-set! mem pos value))
+(define (get-memory mem pos)
+  (u8vector-ref mem pos))
 
 (define (fetch mem)
   (list->u8vector (list (u8vector-ref mem PC)
                         (u8vector-ref mem (+ PC 1)))))
 (define (incr-pc)
   (set-pc (+ (get-pc) 2)))
+
+(define (skip-next-inst)
+  (incr-pc)
+  (incr-pc))
 
 (define (jump-to NNN)
   (set-pc NNN))
@@ -95,25 +107,39 @@
   (print "push MEM addr:" addr)
   (let ((msb (bitwise-and (arithmetic-shift addr -8) #x0F))
         (lsb (bitwise-and addr #xFF)))
+    (print (get-sp))
     (u8vector-set! mem (get-sp) lsb)       ;; 8bit
     (u8vector-set! mem (+ (get-sp) 1) msb) ;; 4bit
     (print "msb: " msb)
     (print "lsb: " lsb))
   (inc-sp)
-  (inc-sp))
+  )
 
 
-(define (pop)
-  (dec-sp)
-  (get-sp)
+(define (pop mem)
   (let ((msb (arithmetic-shift
-              (u8vector-ref mem (get-sp))
+              (u8vector-ref mem (- (get-sp) 0))
               8))
         (lsb (u8vector-ref mem (- (get-sp) 1))))
+    (print "msb = " msb ",  lsb = " lsb)
     (dec-sp)
-    (dec-sp)
-    (bitwise-or msb lsb)))
+    (bitwise-ior msb lsb)))
 
+(define (reg-dump X)
+  (define (iter start_addr reg_n X)
+    (cond ((> reg_n X) '())
+          (else (set-memory *MEMORY* start_addr (get-register reg_n))
+                (iter (+ start_addr 1) (+ reg_n 1) X))))
+  (iter (get-I) 0 X))
+
+(define (reg-load X)
+  (define (iter start_addr reg_n X)
+    (cond ((> reg_n X) '())
+          (else (set-register reg_n (get-memory *MEMORY* start_addr))
+                (iter (+ start_addr 1) (+ reg_n 1) X)))
+    )
+  (iter (get-I) 0 X)
+  )
 
 (define (get-screen-pixel x y)
   (u8vector-ref (vector-ref screen-memory x) y))
@@ -144,7 +170,11 @@
 (define (emulate-si instruction mem)
   (bitmatch instruction
             (((#x00EE 16))
-             (set-pc (pop)) ;; TODO check everything is fine
+             (let ((addr (pop mem)))
+               (print "POP addr: " addr)
+               (set-pc addr)
+               )
+              ;; TODO check everything is fine
              )
             (((#x00E0 16))
              (clear-screen)
@@ -163,7 +193,7 @@
             (((#x4 4) (X 4) (NN 8))
              (print "Skip next instruction if V" X " != " NN)
              (incr-pc))
-            (((#x5 4) (X 4) (Y 4) (#x0))
+            (((#x5 4) (X 4) (Y 4) (#x0 4))
              (print "Skip next instruction if V" X " == V" Y)
              (incr-pc))
             (((#x6 4) (X 4) (NN 8))
@@ -256,7 +286,7 @@
              (((#xB 4) (NNN  12))
               (print "Jump to " NNN)
               (jump-to NNN)
-              (incr-pc))
+              )
              (((#xC 4) (X 4) (NN  8))
               (set-register X
                             (bitwise-and NN
@@ -268,21 +298,31 @@
               (print "DRAW " X " " Y " height: " N)
               (incr-pc))
              (((#xE 4) (X 4) (#x9 4) (#xE 4))
-              (print "if key() == V" X)
+              (if (= 99 X) ;; TODO implement key()
+                  (incr-pc)
+                  '())
+              (print "skip if key() == V" X)
               (incr-pc))
              (((#xE 4) (X 4) (#xA 4) (#x1 4))
+              (if (not (= 99 X)) ;; TODO implement key()
+                  (incr-pc)
+                  '())
               (print "if key() != V" X)
               (incr-pc))
              (((#xF 4) (X 4) (#x0 4) (#x7 4))
+              (set-register X 999) ;; TODO implement get_delay
               (print "V" X " = get_delay")
               (incr-pc))
              (((#xF 4) (X 4) (#x0 4) (#xA 4))
+              (set-register X 999) ;; TODO implement get_key
               (print "V" X " = get_key")
               (incr-pc))
              (((#xF 4) (X 4) (#x1 4) (#x5 4))
+              ;; TODO implement delay_timer
               (print "delay_timer = V" X)
               (incr-pc))
              (((#xF 4) (X 4) (#x1 4) (#x8 4))
+              ;; TODO implement sound_timer
               (print "sound_timer = V" X)
               (incr-pc))
              (((#xF 4) (X 4) (#x1 4) (#xE 4))
@@ -291,24 +331,30 @@
               (print "I += V" X)
               (incr-pc))
              (((#xF 4) (X 4) (#x2 4) (#x9 4))
-              (print "I = SpriteAddress V" X)
+              (print "I = SpriteAddress V" X) ;; TODO come funzionano gli sprite
               (incr-pc))
              (((#xF 4) (X 4) (#x3 4) (#x3 4))
+              ;; TODO binary coded decimal 
               (print "set_BCD V" X)
               (incr-pc))
              (((#xF 4) (X 4) (#x3 4) (#x3 4))
+              ;; TODO binary coded decimal 
               (print "set_BCD V" X)
               (incr-pc))
              (((#xF 4) (X 4) (#x5 4) (#x5 4))
               (print "reg_dump V" X " " I)
+              (reg-dump X)
               (incr-pc))
              (((#xF 4) (X 4) (#x6 4) (#x5 4))
               (print "reg_load V" X " " I)
+              (reg-load X)
               (incr-pc))
             (else
              (bitmatch instruction
                        (((a 4) (b 4) (c 4) (d 4))
-                        (print "[NOT IMPLEMENTED]: " a " " b " " c " " d))))))
+                        (print "[NOT IMPLEMENTED]: " a " " b " " c " " d)
+                        (exit)
+                        )))))
 ;;  The uppermost 256 bytes (0xF00-0xFFF) are reserved for display refresh,
 ;; and the 96 bytes below that (0xEA0-0xEFF) were reserved for the call stack, internal use, and other variables. 
 
@@ -345,5 +391,5 @@
     )))
 
 (define (test)
-  (load-program-into-memory "PONG" *MEMORY*)
+  (load-program-into-memory "test_opcode.ch8" *MEMORY*)
   (emulate *MEMORY*))
