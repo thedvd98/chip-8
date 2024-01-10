@@ -176,7 +176,10 @@
           ((= j int-len) '())
         (u8vector-set! (vector-ref screen-memory i) j 0)))))
 
-
+(define (digit num position)
+  (modulo (quotient num
+                    (expt 10 position))
+          10))
 ;; n = altezza sprite
 (define (draw-sprite mem vx vy n)
   (do ((b 0 (add1 b)))
@@ -363,11 +366,13 @@
              (print "I = SpriteAddress V" X) ;; TODO come funzionano gli sprite
              (incr-pc))
             (((#xF 4) (X 4) (#x3 4) (#x3 4))
-             ;; TODO binary coded decimal 
-             (print "set_BCD V" X)
-             (incr-pc))
-            (((#xF 4) (X 4) (#x3 4) (#x3 4))
-             ;; TODO binary coded decimal 
+             (let ((num (get-register X)))
+               (let ((n1 (digit num 2))
+                     (n2 (digit num 1))
+                     (n3 (digit num 0)))
+                 (set-memory *MEMORY* (get-I) n1)
+                 (set-memory *MEMORY* (+ (get-I) 1) n2)
+                 (set-memory *MEMORY* (+ (get-I) 2) n3)))
              (print "set_BCD V" X)
              (incr-pc))
             (((#xF 4) (X 4) (#x5 4) (#x5 4))
