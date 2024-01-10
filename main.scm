@@ -52,7 +52,7 @@
 (set! (sdl2:event-state 'finger-motion) #f)
 (set! (sdl2:event-state 'multi-gesture) #f)
 
-(define-constant grid-size 1)
+(define-constant grid-size 4)
 
 (define (draw-square x y)
   (sdl2:fill-rect!
