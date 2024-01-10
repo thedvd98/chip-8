@@ -52,7 +52,7 @@
 (set! (sdl2:event-state 'finger-motion) #f)
 (set! (sdl2:event-state 'multi-gesture) #f)
 
-(define-constant grid-size 4)
+(define-constant grid-size 6)
 
 (define (draw-square x y)
   (sdl2:fill-rect!
@@ -61,11 +61,11 @@
    (sdl2:make-color 255 255 255)))  ; Adjust the color (RGB) as needed
 
 (define (draw-grid mem h w)
-  (do ((i 0 (add1 i)))
-      ((>= i h))
-    (do ((j 0 (add1 j)))
-        ((>= j w))
-      (let ((el (u8vector-ref (vector-ref mem i) j)))
+  (do ((j 0 (add1 j)))
+      ((>= j h))
+    (do ((i 0 (add1 i)))
+        ((>= i w))
+      (let ((el (u8vector-ref (vector-ref mem j) i)))
         (if (= el 1)
             (draw-square i j))))))
 (define (draw-screen)
@@ -75,7 +75,6 @@
   (sdl2:fill-rect! (sdl2:window-surface window)
                    #f
                    (sdl2:make-color 0 0 0))
-  (draw-square 0 0)
   (draw-screen)
   (sdl2:update-window-surface! window))
 
