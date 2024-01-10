@@ -61,8 +61,6 @@
 (define screen-memory
   (list->vector (create-screen-memory)))
 
-
-
 (define PC 0)
 (define I 0) ;; address register 12 bit
 (define SP #xEA0)
@@ -86,6 +84,7 @@
   (get-register 15 val))
 (define (set-I val)
   (set! I val))
+
 (define (get-I)
   I)
 (define (get-sp)
@@ -129,7 +128,6 @@
     (print "lsb: " lsb))
   (inc-sp)
   )
-
 
 (define (pop mem)
   (let ((msb (arithmetic-shift
@@ -178,11 +176,6 @@
           ((= j int-len) '())
         (u8vector-set! (vector-ref screen-memory i) j 0)))))
 
-(define (get-bit mem addr col)
-  (let ((sprite (bit-field (u8vector-ref mem addr) col (+ col 1))))
-    ;; (print "sprite at col " col ", value=> " sprite ", addr => " addr)
-    sprite
-    ))
 
 ;; n = altezza sprite
 (define (draw-sprite mem vx vy n)
@@ -198,9 +191,9 @@
   (bitmatch instruction
             (((#x00EE 16))
              (let ((addr (pop mem)))
-               (print "POP addr: " addr)
+               (print "POP addr: 0x" (tohex addr))
                (set-pc addr)
-               )
+               (incr-pc))
              ;; TODO check everything is fine
              )
             (((#x00E0 16))
@@ -210,7 +203,7 @@
              (push mem (get-pc))
              (set-pc address))
             (((#x1 4) (address 12)) ;; jump at address
-             (print "jump to " address)
+             (print "jump to 0x" (tohex address))
              (set-pc address))
             (((#x2 4) (address 12)) ;; Call subroutine
              (push mem (get-pc))
@@ -238,8 +231,9 @@
              (incr-pc))
             (((#x7 4) (X 4) (NN 8))
              (set-register X
-                           (+ (get-register X) NN))
-             (print "V" X " += " NN)
+                           (bitwise-and (+ (get-register X) NN)
+                                        #xff))
+             (print "V" X " += " NN " => " (get-register X))
              (incr-pc))
             (((#x8 4) (X 4) (Y 4) (#x0 4))
              (set-register X
@@ -290,8 +284,9 @@
              (let ((VX (get-register X)))
                (begin (set-carry-flag (bitwise-and
                                        VX 1))
-                      (set-register X (bit-field VX 1 8)))
-               (print "V" X " >>= 1")))
+                      (set-register X (arithmetic-shift VX -1)))
+               (print "V" X " >>= 1"))
+             (incr-pc))
             (((#x8 4) (X  4) (Y 4) (#x7 4))
              (let ((subtraction (- (get-register Y)
                                    (get-register X))))
@@ -306,11 +301,11 @@
             (((#x8 4) (X  4) (Y 4) (#xE 4))
              (let ((VX (get-register X)))
                (begin (set-carry-flag (bit-field VX 7 8))
-                      (set-register X (bit-field VX 0 7)))
+                      (set-register X (bitwise-and (arithmetic-shift VX 1) #xff)))
                (print "V" X " <<= 1"))
              (incr-pc))
             (((#x9 4) (X  4) (Y 4) (#x0 4))
-             (if (not (= X Y))
+             (if (not (= (get-register X) (get-register Y)))
                  (incr-pc)
                  '())
              (print "Skip the next instruction if VX != VY")
@@ -320,9 +315,7 @@
              (set-I NNN)
              (incr-pc))
             (((#xB 4) (NNN  12))
-             (print "Jump to " NNN)
-             (jump-to NNN)
-             )
+             (jump-to (+ (get-register 0) NNN)))
             (((#xC 4) (X 4) (NN  8))
              (set-register X
                            (bitwise-and NN
@@ -334,13 +327,13 @@
              (print "DRAW X: " (get-register X) ", Y: " (get-register Y) " height: " N)
              (incr-pc))
             (((#xE 4) (X 4) (#x9 4) (#xE 4))
-             (if (= 99 X) ;; TODO implement key()
+             (if (= 99 (get-register X)) ;; TODO implement key()
                  (incr-pc)
                  '())
              (print "skip if key() == V" X)
              (incr-pc))
             (((#xE 4) (X 4) (#xA 4) (#x1 4))
-             (if (not (= 99 X)) ;; TODO implement key()
+             (if (not (= 99 (get-register X))) ;; TODO implement key()
                  (incr-pc)
                  '())
              (print "if key() != V" X)
