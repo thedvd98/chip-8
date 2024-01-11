@@ -162,7 +162,7 @@
                  1
                  0)))
     ;; (print "setting pixel value " bit)
-    (if (or (> x SCREEN_WIDTH) (> y SCREEN_HEIGHT) (< x 0) (< y 0))
+    (if (or (>= x SCREEN_WIDTH) (>= y SCREEN_HEIGHT) (< x 0) (< y 0))
         #f
         (u8vector-set!
          (vector-ref screen-memory y) x (bitwise-xor bit (get-screen-pixel x y))))))
@@ -189,6 +189,12 @@
       (do ((a 0 (add1 a)))
           ((>= (+ a vx) (+ vx SPRITE_LENGTH)) #t)
         (set-screen-pixel (+ a vx) (+ b vy) (vector-ref bits (- 7 a)))))))
+
+(define key 0)
+(define (set-key k)
+  (set! key k))
+(define (get-key)
+  key)
 
 (define (emulate-si instruction mem)
   (bitmatch instruction
@@ -330,13 +336,13 @@
              (print "DRAW X: " (get-register X) ", Y: " (get-register Y) " height: " N)
              (incr-pc))
             (((#xE 4) (X 4) (#x9 4) (#xE 4))
-             (if (= 99 (get-register X)) ;; TODO implement key()
+             (if (= (get-key) (get-register X)) ;; TODO test key()
                  (incr-pc)
                  '())
              (print "skip if key() == V" X)
              (incr-pc))
             (((#xE 4) (X 4) (#xA 4) (#x1 4))
-             (if (not (= 99 (get-register X))) ;; TODO implement key()
+             (if (not (= (get-key) (get-register X))) ;; TODO test key()
                  (incr-pc)
                  '())
              (print "if key() != V" X)
@@ -346,7 +352,7 @@
              (print "V" X " = get_delay")
              (incr-pc))
             (((#xF 4) (X 4) (#x0 4) (#xA 4))
-             (set-register X 999) ;; TODO implement get_key
+             (set-register X (get-key)) ;; TODO test get_key
              (print "V" X " = get_key")
              (incr-pc))
             (((#xF 4) (X 4) (#x1 4) (#x5 4))
@@ -425,6 +431,9 @@
       (emulate-si instr mem))
     )))
 
+(define (pong)
+  (load-program-into-memory "PONG" *MEMORY*)
+  (emulate *MEMORY*))
 (define (test)
   (load-program-into-memory "1-chip8-logo.ch8" *MEMORY*)
   (emulate *MEMORY*))

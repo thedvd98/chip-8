@@ -32,14 +32,6 @@
 (define WIN_WIDTH 600)
 
 
-(define window
-  (sdl2:create-window! "Hello, World!" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
-
-(printf "Window position: ~A, size: ~A, max size: ~A, min size: ~A~N"
-        (receive (sdl2:window-position window))
-        (receive (sdl2:window-size window))
-        (receive (sdl2:window-maximum-size window))
-        (receive (sdl2:window-minimum-size window)))
 ;; Install a custom exception handler that will call quit! and then
 ;; call the original exception handler. This ensures that quit! will
 ;; be called even if an unhandled exception reaches the top level.
@@ -54,41 +46,40 @@
 
 (define-constant grid-size 6)
 
-(define (draw-square x y)
+(define (draw-square win x y)
   (sdl2:fill-rect!
-   (sdl2:window-surface window)
+   (sdl2:window-surface win)
    (sdl2:make-rect (* grid-size x) (* grid-size y) grid-size grid-size)  ; Adjust the size (20x20) according to your requirements
    (sdl2:make-color 255 255 255)))  ; Adjust the color (RGB) as needed
 
-(define (draw-grid mem h w)
+(define (draw-grid win mem h w)
   (do ((j 0 (add1 j)))
       ((>= j h))
     (do ((i 0 (add1 i)))
         ((>= i w))
       (let ((el (u8vector-ref (vector-ref mem j) i)))
         (if (= el 1)
-            (draw-square i j))))))
-(define (draw-screen)
-  (draw-grid screen-memory SCREEN_HEIGHT SCREEN_WIDTH))
+            (draw-square win i j))))))
+(define (draw-screen win)
+  (draw-grid win screen-memory SCREEN_HEIGHT SCREEN_WIDTH))
 
-(define (update-screen)
-  (sdl2:fill-rect! (sdl2:window-surface window)
+(define (update-screen win)
+  (sdl2:fill-rect! (sdl2:window-surface win)
                    #f
                    (sdl2:make-color 0 0 0))
-  (draw-screen)
-  (sdl2:update-window-surface! window))
+  (draw-screen win)
+  (sdl2:update-window-surface! win))
 
 ;; MAIN
 
 (define (main-loop)
   (define event (sdl2:make-event))
 
-  ;; Schedule quit! to be automatically called when your program exits normally.
+  (define window
+    (sdl2:create-window! "Hello, World!" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
     (let ((done #f)
         (verbose? #f))
     (while (not done)
-      (update-screen)
-      (thread-sleep! 0.25)
       (let ((ev (sdl2:wait-event! event thread-delay!)))
         (when verbose?
           (print ev))
@@ -104,7 +95,14 @@
              ((escape q)
               (set! done #t))
              ((v)
-              (print "verbose"))))))))
+              (print "verbose"))
+             (else
+              (let ((key (sdl2:keyboard-event-sym-raw ev)))
+                (set-key key)
+                (print key)))))))
+      (update-screen window)
+      (thread-sleep! 0.010)
+      ))
   (sdl2:quit!))
 
 (define (start-main-loop-in-thread!)
