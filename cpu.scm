@@ -196,6 +196,11 @@
 (define (get-key)
   key)
 
+
+(define (font-location vx)
+  (let ((font-length 5))
+    (+ 5 (* font-length vx))))
+
 (define (emulate-si instruction mem)
   (bitmatch instruction
             (((#x00EE 16))
@@ -203,7 +208,6 @@
                (print "POP addr: 0x" (tohex addr))
                (set-pc addr)
                (incr-pc))
-             ;; TODO check everything is fine
              )
             (((#x00E0 16))
              (clear-screen)
@@ -369,7 +373,9 @@
              (print "I += V" X)
              (incr-pc))
             (((#xF 4) (X 4) (#x2 4) (#x9 4))
-             (print "I = SpriteAddress V" X) ;; TODO come funzionano gli sprite
+             (let ((sprite_addr (font-location (get-register X))))
+               (print "I = SpriteAddress VX " (get-register X) " -> addr: 0x" (tohex sprite_addr)) ;; TODO come funzionano gli sprite
+               (set-I sprite_addr))
              (incr-pc))
             (((#xF 4) (X 4) (#x3 4) (#x3 4))
              (let ((num (get-register X)))
@@ -434,6 +440,11 @@
 (define (pong)
   (load-program-into-memory "PONG" *MEMORY*)
   (emulate *MEMORY*))
+
+(define (test-keypad)
+  (load-program-into-memory "6-keypad.ch8" *MEMORY*)
+  (emulate *MEMORY*))
+
 (define (test)
   (load-program-into-memory "1-chip8-logo.ch8" *MEMORY*)
   (emulate *MEMORY*))
@@ -441,3 +452,8 @@
 (define (test-1)
   (load-program-into-memory "test_opcode.ch8" *MEMORY*)
   (emulate *MEMORY*))
+
+(define (test-flags)
+  (load-program-into-memory "4-flags.ch8" *MEMORY*)
+  (emulate *MEMORY*))
+

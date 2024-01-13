@@ -76,7 +76,7 @@
   (define event (sdl2:make-event))
 
   (define window
-    (sdl2:create-window! "Hello, World!" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
+    (sdl2:create-window! "Chip-8 emulator" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
     (let ((done #f)
         (verbose? #f))
     (while (not done)
@@ -84,7 +84,8 @@
         (when verbose?
           (print ev))
         (if (sdl2:quit-event? ev)
-            (sdl2:quit!))
+            (begin 
+                   (set! done #t)))
         (case (sdl2:event-type ev)
           ((window)
            '())
