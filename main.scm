@@ -13,6 +13,9 @@
 ;; delay-fn must be a procedure which accepts a number of milliseconds to sleep
 (define (thread-delay! ms) (thread-sleep! (* ms 0.001)))
 
+(define WIN_HEIGHT 400)
+(define WIN_WIDTH 600)
+
 ;; Initialize SDL
 
 (sdl2:set-main-ready!)
@@ -27,10 +30,6 @@
    (lambda (exception)
      (sdl2:quit!)
      (original-handler exception))))
-
-(define WIN_HEIGHT 400)
-(define WIN_WIDTH 600)
-
 
 ;; Install a custom exception handler that will call quit! and then
 ;; call the original exception handler. This ensures that quit! will
