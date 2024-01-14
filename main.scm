@@ -59,17 +59,20 @@
       (let ((el (u8vector-ref (vector-ref mem j) i)))
         (if (= el 1)
             (draw-square win i j))))))
-(define (draw-screen win)
+
+(define (draw-screen screen-memory win)
   (draw-grid win screen-memory SCREEN_HEIGHT SCREEN_WIDTH))
 
 (define (update-screen win)
   (sdl2:fill-rect! (sdl2:window-surface win)
                    #f
                    (sdl2:make-color 0 0 0))
-  (draw-screen win)
+  (draw-screen (cpu-screen-memory main-cpu) win)
   (sdl2:update-window-surface! win))
 
 ;; MAIN
+
+(define main-cpu (init-cpu))
 
 (define (main-loop)
   (define event (sdl2:make-event))
@@ -98,7 +101,7 @@
               (print "verbose"))
              (else
               (let ((key (sdl2:keyboard-event-sym-raw ev)))
-                (set-key key)
+                (cpu-key-set! main-cpu key)
                 (print key)))))))
       (update-screen window)
       (thread-sleep! 0.010)

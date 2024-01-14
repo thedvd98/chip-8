@@ -126,7 +126,7 @@
     (u8vector-set! (cpu-memory *CPU*) (cpu-SP *CPU*) lsb)       ;; 8bit
     (u8vector-set! (cpu-memory *CPU*) (+ (cpu-SP *CPU*) 1) msb) ;; 4bit
 )
-  (inc-sp))
+  (inc-sp *CPU*))
 
 (define (pop *CPU*)
   (define (dec-sp *CPU*)
@@ -378,11 +378,9 @@
              (print "set_BCD V" X)
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x5 4) (#x5 4))
-             (print "reg_dump V" X " " I)
              (reg-dump *CPU* X)
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x6 4) (#x5 4))
-             (print "reg_load V" X " " I)
              (reg-load *CPU* X)
              (incr-pc *CPU*))
             (else
@@ -419,6 +417,7 @@
     (let ((instr (fetch *CPU*)))
       (emulate-si instr *CPU*))
     )))
+
 
 (define (pong *CPU*)
   (load-program-into-memory "PONG" *CPU*)
