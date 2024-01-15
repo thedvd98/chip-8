@@ -73,39 +73,47 @@
 ;; MAIN
 
 (define main-cpu (init-cpu))
+(define start_time (sdl2:get-ticks))
 
 (define (main-loop)
   (define event (sdl2:make-event))
 
   (define window
     (sdl2:create-window! "Chip-8 emulator" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
-    (let ((done #f)
+
+  (load-program-into-memory "PONG" main-cpu)
+
+  (let ((done #f)
         (verbose? #f))
     (while (not done)
-      (let ((ev (sdl2:wait-event! event thread-delay!)))
-        (when verbose?
-          (print ev))
-        (if (sdl2:quit-event? ev)
-            (begin 
+           (let ((ev (sdl2:wait-event! event thread-delay!)))
+             (when verbose?
+               (print ev))
+             (if (sdl2:quit-event? ev)
+                 (begin 
                    (set! done #t)))
-        (case (sdl2:event-type ev)
-          ((window)
-           '())
-          ((quit)
-           (set! done #t))
-          ((key-down)
-           (case (sdl2:keyboard-event-sym ev)
-             ((escape q)
-              (set! done #t))
-             ((v)
-              (print "verbose"))
-             (else
-              (let ((key (sdl2:keyboard-event-sym-raw ev)))
-                (cpu-key-set! main-cpu key)
-                (print key)))))))
-      (update-screen window)
-      (thread-sleep! 0.010)
-      ))
+             (case (sdl2:event-type ev)
+               ((window)
+                '())
+               ((quit)
+                (set! done #t))
+               ((key-down)
+                (case (sdl2:keyboard-event-sym ev)
+                  ((escape q)
+                   (set! done #t))
+                  ((v)
+                   (print "verbose"))
+                  (else
+                   (let ((key (sdl2:keyboard-event-sym-raw ev)))
+                     (cpu-key-set! main-cpu key)
+                     (print key)))))))
+           (let ((t (sdl2:get-ticks)))
+             (if (>= (- t start_time) 16)
+                 (set! start_time t)
+                 (delay-timer main-cpu)))
+           (emulate-instruction main-cpu)
+           (update-screen window)
+           (thread-sleep! 0.010)))
   (sdl2:quit!))
 
 (define (start-main-loop-in-thread!)

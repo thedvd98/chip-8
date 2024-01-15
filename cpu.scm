@@ -39,7 +39,7 @@
 (define-constant TIMER_START 60)
 
 (define-record cpu
-  memory screen-memory PC SP I registers key delay_timer sound_timer)
+  memory screen-memory PC SP I registers key delay-timer sound-timer)
 
 (define-record-printer (cpu c out)
   (fprintf out "#,(cpu PC=~s SP=~s I=~s registers=~s)"
@@ -113,6 +113,13 @@
 
 (define (jump-to NNN)
   (set-pc *CPU* NNN))
+
+(define (delay-timer c)
+  (print "delay")
+  (let ((dt (cpu-delay-timer c)))
+    (if (<= dt 0)
+        '()
+        (cpu-delay-timer-set! c (- dt 1)))))
 
 ;; stack only used to store return addresses of 12bit
 (define (push *CPU* addr)
@@ -409,8 +416,7 @@
      ((>= (cpu-PC *CPU*) (u8vector-length (cpu-memory *CPU*))) (print "END"))
      (else
       (emulate-si (fetch *CPU*) *CPU*)
-      (iter)
-      )))
+      (iter))))
   (iter))
 
 (define (emulate-instruction *CPU*)
@@ -430,7 +436,6 @@
   (emulate *CPU*))
 
 (define (test *CPU*)
-  (print  *CPU*)
   (load-program-into-memory "1-chip8-logo.ch8" *CPU*)
   (emulate *CPU*))
 
