@@ -36,6 +36,7 @@
 (define-constant PIXEL_ON 1)
 (define-constant PIXEL_OFF 0)
 (define-constant SPRITE_LENGTH 8) ;; in pixel
+(define-constant TIMER_START 60)
 
 (define-record cpu
   memory screen-memory PC SP I registers key delay_timer sound_timer)
@@ -112,7 +113,6 @@
 
 (define (jump-to NNN)
   (set-pc *CPU* NNN))
-
 
 ;; stack only used to store return addresses of 12bit
 (define (push *CPU* addr)
@@ -191,6 +191,7 @@
   (let ((font-length 5))
     (+ 5 (* font-length vx))))
 
+;; EMULATOR
 (define (emulate-si instruction *CPU*)
   (bitmatch instruction
             (((#x00EE 16))
@@ -330,32 +331,34 @@
              (print "DRAW X: " (get-register *CPU* X) ", Y: " (get-register *CPU* Y) " height: " N)
              (incr-pc *CPU*))
             (((#xE 4) (X 4) (#x9 4) (#xE 4))
-             (if (= (get-key) (get-register *CPU* X)) ;; TODO test key()
+             (if (= (cpu-key *CPU*) (get-register *CPU* X)) ;; TODO test key()
                  (incr-pc *CPU*)
                  '())
              (print "skip if key() == V" X)
              (incr-pc *CPU*))
             (((#xE 4) (X 4) (#xA 4) (#x1 4))
-             (if (not (= (get-key) (get-register *CPU* X))) ;; TODO test key()
+             (if (not (= (cpu-key *CPU*) (get-register *CPU* X))) ;; TODO test key()
                  (incr-pc *CPU*)
                  '())
              (print "if key() != V" X)
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x0 4) (#x7 4))
-             (set-register *CPU* X 999) ;; TODO implement get_delay
+             (set-register *CPU* X (cpu-delay-timer *CPU*)) ;; TODO implement get_delay
              (print "V" X " = get_delay")
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x0 4) (#xA 4))
-             (set-register *CPU* X (get-key)) ;; TODO test get_key
+             (set-register *CPU* X (cpu-key *CPU*)) ;; TODO test get_key
              (print "V" X " = get_key")
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x1 4) (#x5 4))
              ;; TODO implement delay_timer
              (print "delay_timer = V" X)
+             (cpu-delay-timer-set! *CPU* (get-register *CPU* X))
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x1 4) (#x8 4))
              ;; TODO implement sound_timer
              (print "sound_timer = V" X)
+             (cpu-sound-timer-set! *CPU* (get-register *CPU* X))
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x1 4) (#xE 4))
              (cpu-I-set! *CPU* (+ (cpu-I *CPU*)
@@ -415,8 +418,7 @@
    ((>= (cpu-PC *CPU* ) (u8vector-length (cpu-memory *CPU*))) (print "END"))
    (else
     (let ((instr (fetch *CPU*)))
-      (emulate-si instr *CPU*))
-    )))
+      (emulate-si instr *CPU*)))))
 
 
 (define (pong *CPU*)
