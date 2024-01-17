@@ -115,7 +115,6 @@
   (set-pc *CPU* NNN))
 
 (define (delay-timer c)
-  (print "delay")
   (let ((dt (cpu-delay-timer c)))
     (if (<= dt 0)
         '()
@@ -214,7 +213,7 @@
              (push *CPU* (get-pc *CPU*))
              (set-pc *CPU* address))
             (((#x1 4) (address 12)) ;; jump at address
-             (print "jump to 0x" (tohex address))
+             ;;(print "jump to " (tohex address))
              (set-pc *CPU* address))
             (((#x2 4) (address 12)) ;; Call subroutine
              (push *CPU* (get-pc *CPU*))
@@ -351,7 +350,7 @@
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x0 4) (#x7 4))
              (set-register *CPU* X (cpu-delay-timer *CPU*)) ;; TODO implement get_delay
-             (print "V" X " = get_delay")
+             ;;(print "V" X " = get_delay")
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x0 4) (#xA 4))
              (set-register *CPU* X (cpu-key *CPU*)) ;; TODO test get_key

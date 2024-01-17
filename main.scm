@@ -86,25 +86,23 @@
   (let ((done #f)
         (verbose? #f))
     (while (not done)
-           (let ((ev (sdl2:wait-event! event thread-delay!)))
+           (let ((ev (sdl2:wait-event-timeout! 16 event thread-delay!)))
              (when verbose?
-               (print ev))
-             (if (sdl2:quit-event? ev)
+              (print ev))
+             (if (sdl2:quit-event? event)
                  (begin 
                    (set! done #t)))
-             (case (sdl2:event-type ev)
-               ((window)
-                '())
+             (case (sdl2:event-type event)
                ((quit)
                 (set! done #t))
                ((key-down)
-                (case (sdl2:keyboard-event-sym ev)
+                (case (sdl2:keyboard-event-sym event)
                   ((escape q)
                    (set! done #t))
                   ((v)
                    (print "verbose"))
                   (else
-                   (let ((key (sdl2:keyboard-event-sym-raw ev)))
+                   (let ((key (sdl2:keyboard-event-sym-raw event)))
                      (cpu-key-set! main-cpu key)
                      (print key)))))))
            (let ((t (sdl2:get-ticks)))
@@ -121,3 +119,5 @@
 
 (define *main-loop-thread* (make-parameter #f))
 
+;(start-main-loop-in-thread!)
+;(thread-join! (*main-loop-thread*))
