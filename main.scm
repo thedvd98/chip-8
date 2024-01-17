@@ -82,14 +82,15 @@
   (define window
     (sdl2:create-window! "Chip-8 emulator" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
 
-  (load-program-into-memory "6-keypad.ch8" main-cpu)
+  ;;(load-program-into-memory "6-keypad.ch8" main-cpu)
+  (load-program-into-memory "PONG" main-cpu)
 
   (let ((done #f)
         (verbose? #f))
     (while (not done)
-           (let ((ev (sdl2:wait-event-timeout! 15 event thread-delay!)))
+           (let ((ev (sdl2:wait-event-timeout! 1 event thread-delay!)))
              (when verbose?
-              (print ev))
+               (print ev))
              (if (sdl2:quit-event? event)
                  (begin
                    (set! done #t)))
@@ -102,9 +103,13 @@
                    (set! done #t))
                   ((v)
                    (print "verbose"))
+                  ((a b c d e f)
+                   (let ((key (sdl2:keyboard-event-sym-raw event)))
+                     (cpu-key-set! main-cpu (- key 87))
+                     (print key)))
                   (else
                    (let ((key (sdl2:keyboard-event-sym-raw event)))
-                     (cpu-key-set! main-cpu key)
+                     (cpu-key-set! main-cpu (- key 48))
                      (print key)))))))
            (let ((t (sdl2:get-ticks)))
              (if (>= (- t start_time) septimems)
@@ -113,7 +118,7 @@
                    (delay-timer main-cpu))))
            (emulate-instruction main-cpu)
            (update-screen window)
-           (thread-sleep! 0.010)))
+           (thread-sleep! 0.005)))
   (sdl2:quit!))
 
 (define (start-main-loop-in-thread!)
