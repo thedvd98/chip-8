@@ -73,24 +73,25 @@
 ;; MAIN
 
 (define main-cpu (init-cpu))
-(define start_time (sdl2:get-ticks))
 
 (define (main-loop)
   (define event (sdl2:make-event))
+  (define start_time (sdl2:get-ticks))
+  (define septimems 16)
 
   (define window
     (sdl2:create-window! "Chip-8 emulator" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
 
-  (load-program-into-memory "PONG" main-cpu)
+  (load-program-into-memory "6-keypad.ch8" main-cpu)
 
   (let ((done #f)
         (verbose? #f))
     (while (not done)
-           (let ((ev (sdl2:wait-event-timeout! 16 event thread-delay!)))
+           (let ((ev (sdl2:wait-event-timeout! 15 event thread-delay!)))
              (when verbose?
               (print ev))
              (if (sdl2:quit-event? event)
-                 (begin 
+                 (begin
                    (set! done #t)))
              (case (sdl2:event-type event)
                ((quit)
@@ -106,9 +107,10 @@
                      (cpu-key-set! main-cpu key)
                      (print key)))))))
            (let ((t (sdl2:get-ticks)))
-             (if (>= (- t start_time) 16)
-                 (set! start_time t)
-                 (delay-timer main-cpu)))
+             (if (>= (- t start_time) septimems)
+                 (begin
+                   (set! start_time t)
+                   (delay-timer main-cpu))))
            (emulate-instruction main-cpu)
            (update-screen window)
            (thread-sleep! 0.010)))
@@ -118,6 +120,7 @@
   (*main-loop-thread* (thread-start! main-loop)))
 
 (define *main-loop-thread* (make-parameter #f))
+(main-loop)
 
 ;(start-main-loop-in-thread!)
 ;(thread-join! (*main-loop-thread*))

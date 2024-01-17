@@ -41,6 +41,16 @@
 (define-record cpu
   memory screen-memory PC SP I registers key delay-timer sound-timer)
 
+(define (mem-to-string mem start end)
+  (define (iter start end)
+    (if (< start end)
+        (begin (printf "~s: ~s\n"
+                 (tohex start)
+                 (tohex (u8vector-ref mem start)))
+               (iter (+ start 1) end))
+        ))
+  (iter start end))
+
 (define-record-printer (cpu c out)
   (fprintf out "#,(cpu PC=~s SP=~s I=~s registers=~s)"
            (tohex (cpu-PC c))
@@ -107,11 +117,7 @@
 (define (incr-pc *CPU*)
   (set-pc *CPU* (+ (get-pc *CPU*) 2)))
 
-(define (skip-next-inst)
-  (incr-pc *CPU*)
-  (incr-pc *CPU*))
-
-(define (jump-to NNN)
+(define (jump-to *CPU* NNN)
   (set-pc *CPU* NNN))
 
 (define (delay-timer c)
@@ -125,22 +131,23 @@
   ;; TESTME
   (define (inc-sp *CPU*)
     (cpu-SP-set! *CPU* (+ (cpu-SP *CPU*) 1)))
-  (print "push MEM addr:" addr)
-  (let ((msb (bitwise-and (arithmetic-shift addr -8) #x0F))
-        (lsb (bitwise-and addr #xFF)))
+  (print "PUSH => " (tohex addr))
+  (let ((msb (bitwise-and (arithmetic-shift addr -8) #x0F)) ; 4 bit
+        (lsb (bitwise-and addr #xFF)))  ;; 8 bit
     (print (cpu-SP *CPU*))
-    (u8vector-set! (cpu-memory *CPU*) (cpu-SP *CPU*) lsb)       ;; 8bit
-    (u8vector-set! (cpu-memory *CPU*) (+ (cpu-SP *CPU*) 1) msb) ;; 4bit
-)
+    (u8vector-set! (cpu-memory *CPU*) (cpu-SP *CPU*) lsb)
+    (u8vector-set! (cpu-memory *CPU*) (+ (cpu-SP *CPU*) 1) msb))
+  (inc-sp *CPU*)
   (inc-sp *CPU*))
 
 (define (pop *CPU*)
   (define (dec-sp *CPU*)
     (cpu-SP-set! *CPU* (- (cpu-SP *CPU*) 1)))
   (let ((msb (arithmetic-shift
-              (u8vector-ref (cpu-memory *CPU*) (- (cpu-SP *CPU*) 0))
+              (u8vector-ref (cpu-memory *CPU*) (- (cpu-SP *CPU*) 1))
               8))
-        (lsb (u8vector-ref (cpu-memory *CPU*) (- (cpu-SP *CPU*) 1))))
+        (lsb (u8vector-ref (cpu-memory *CPU*) (- (cpu-SP *CPU*) 2))))
+    (dec-sp *CPU*)
     (dec-sp *CPU*)
     (bitwise-ior msb lsb)))
 
@@ -202,7 +209,7 @@
   (bitmatch instruction
             (((#x00EE 16))
              (let ((addr (pop *CPU*)))
-               (print "POP addr: 0x" (tohex addr))
+               (print "POP => " (tohex addr))
                (set-pc *CPU* addr)
                (incr-pc *CPU*))
              )
@@ -325,7 +332,7 @@
              (cpu-I-set! *CPU* NNN)
              (incr-pc *CPU*))
             (((#xB 4) (NNN  12))
-             (jump-to (+ (get-register *CPU* 0) NNN)))
+             (jump-to *CPU* (+ (get-register *CPU* 0) NNN)))
             (((#xC 4) (X 4) (NN  8))
              (set-register *CPU* X
                            (bitwise-and NN
@@ -412,7 +419,7 @@
 (define (emulate *CPU*)
   (define (iter)
     (cond
-     ((>= (cpu-PC *CPU*) (u8vector-length (cpu-memory *CPU*))) (print "END"))
+     ((> (cpu-PC *CPU*) (u8vector-length (cpu-memory *CPU*))) (print "END"))
      (else
       (emulate-si (fetch *CPU*) *CPU*)
       (iter))))
@@ -420,7 +427,7 @@
 
 (define (emulate-instruction *CPU*)
   (cond
-   ((>= (cpu-PC *CPU* ) (u8vector-length (cpu-memory *CPU*))) (print "END"))
+   ((> (cpu-PC *CPU* ) (u8vector-length (cpu-memory *CPU*))) (print "END " (tohex (cpu-PC *CPU*))))
    (else
     (let ((instr (fetch *CPU*)))
       (emulate-si instr *CPU*)))))
