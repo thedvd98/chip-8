@@ -2,6 +2,7 @@
         (chicken format)
         srfi-4 srfi-12 srfi-18
         miscmacros)
+(import (chicken process-context)) ;; for command line args
 
 (include "cpu.scm")
 
@@ -82,8 +83,16 @@
   (define window
     (sdl2:create-window! "Chip-8 emulator" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
 
-  ;;(load-program-into-memory "6-keypad.ch8" main-cpu)
-  (load-program-into-memory "PONG" main-cpu)
+  (load-program-into-memory "6-keypad.ch8" main-cpu)
+
+
+  ;; (let ((n (command-line-arguments)))
+  ;;   (print "arguments: " n)
+  ;;   (if (> (length n) 0)
+  ;;       (let ((filename (car n)))
+  ;;         (load-program-into-memory filename main-cpu))
+  ;;       (load-program-into-memory "6-keypad.ch8" main-cpu)))
+
 
   (let ((done #f)
         (verbose? #f))
@@ -97,6 +106,16 @@
              (case (sdl2:event-type event)
                ((quit)
                 (set! done #t))
+               ((key-up)
+                (case (sdl2:keyboard-event-sym event)
+                  ((a b c d e f)
+                   (let ((key (sdl2:keyboard-event-sym-raw event)))
+                     (key-up main-cpu (- key 87))
+                     (print (- key 87))))
+                  ((n-0 n-1 n-2 n-3 n-4 n-5 n-6 n-7 n-8 n-9)
+                   (let ((key (sdl2:keyboard-event-sym-raw event)))
+                     (key-up main-cpu (- key 48))
+                     (print (- key 48))))))
                ((key-down)
                 (case (sdl2:keyboard-event-sym event)
                   ((escape q)
@@ -105,12 +124,12 @@
                    (print "verbose"))
                   ((a b c d e f)
                    (let ((key (sdl2:keyboard-event-sym-raw event)))
-                     (cpu-key-set! main-cpu (- key 87))
-                     (print key)))
-                  (else
+                     (key-down main-cpu (- key 87))
+                     (print (- key 87))))
+                  ((n-0 n-1 n-2 n-3 n-4 n-5 n-6 n-7 n-8 n-9)
                    (let ((key (sdl2:keyboard-event-sym-raw event)))
-                     (cpu-key-set! main-cpu (- key 48))
-                     (print key)))))))
+                     (key-down main-cpu (- key 48))
+                     (print (- key 48))))))))
            (let ((t (sdl2:get-ticks)))
              (if (>= (- t start_time) septimems)
                  (begin
