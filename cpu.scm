@@ -314,10 +314,11 @@
              (incr-pc *CPU*))
             (((#x8 4) (X  4) (Y 4) (#x6 4))
              (let ((VX (get-register *CPU* X)))
-               (begin (set-carry-flag *CPU* (bitwise-and
-                                       VX 1))
-                      (set-register *CPU* X (arithmetic-shift VX -1)))
-               ;(print "V" X " >>= 1")
+               (begin
+                      (set-register *CPU* X (arithmetic-shift VX -1))
+                      (set-carry-flag *CPU* (bitwise-and
+                                             VX 1)))
+               ;;(print "V" X " >>= 1 -> " (get-register *CPU* X))
                )
              (incr-pc *CPU*))
             (((#x8 4) (X  4) (Y 4) (#x7 4))
@@ -333,8 +334,9 @@
              (incr-pc *CPU*))
             (((#x8 4) (X  4) (Y 4) (#xE 4))
              (let ((VX (get-register *CPU* X)))
-               (begin (set-carry-flag *CPU* (bit-field VX 7 8))
-                      (set-register *CPU* X (bitwise-and (arithmetic-shift VX 1) #xff)))
+               (begin
+                      (set-register *CPU* X (bitwise-and (arithmetic-shift VX 1) #xff))
+                      (set-carry-flag *CPU* (bit-field VX 7 8)))
                (print "V" X " <<= 1"))
              (incr-pc *CPU*))
             (((#x9 4) (X  4) (Y 4) (#x0 4))
@@ -449,6 +451,7 @@
      ((> (cpu-PC *CPU*) (u8vector-length (cpu-memory *CPU*))) (print "END"))
      (else
       (emulate-si (fetch *CPU*) *CPU*)
+      (thread-sleep! 0.010)
       (iter))))
   (iter))
 
