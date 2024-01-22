@@ -39,7 +39,7 @@
 (define-constant TIMER_START 60)
 
 (define-record cpu
-  memory screen-memory PC SP I registers keys delay-timer sound-timer running)
+  memory screen-memory PC SP I registers keys delay-timer sound-timer running pause)
 
 (define (mem-to-string mem start end)
   (define (iter start end)
@@ -83,10 +83,11 @@
         (keys (vector #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f))
         (delay_timer 0)
         (sound_timer 0)
-        (running #t))
+        (running #t)
+        (pause #f))
     (set-pseudo-random-seed! "djfadjfkjsdafkqpmvb")
     (define *CPU*
-      (make-cpu memory screen-memory pc sp i registers keys delay_timer sound_timer running))
+      (make-cpu memory screen-memory pc sp i registers keys delay_timer sound_timer running pause))
     (load-fontset-to-memory *CPU*)
     *CPU*
     ))
@@ -102,7 +103,13 @@
   (cpu-delay-timer-set! c 0)
   (cpu-sound-timer-set! c 0)
   (load-fontset-to-memory c)
-  (cpu-running-set! c #t))
+  (cpu-running-set! c #t)
+  (cpu-pause-set! c #f))
+
+(define (pause c)
+  (cpu-pause-set! c #t))
+(define (unpause c)
+  (cpu-pause-set! c #f))
 
 (define (vector-index vec value)
   (define (loop i)
@@ -199,13 +206,20 @@
   (u8vector-ref (vector-ref (cpu-screen-memory *CPU*) y) x))
 
 (define (set-screen-pixel *CPU* x y value)
-  (let ((bit (if value
-                 1
-                 0)))
+  (let ((bit (if value 1 0))
+        (x (modulo x SCREEN_WIDTH))
+        (y (modulo y SCREEN_HEIGHT)))
     (if (or (>= x SCREEN_WIDTH) (>= y SCREEN_HEIGHT) (< x 0) (< y 0))
-        #f
-        (u8vector-set!
-         (vector-ref (cpu-screen-memory *CPU*) y) x (bitwise-xor bit (get-screen-pixel *CPU* x y))))))
+        (printf "OUT of screen x:~s, y:~s\n" x y)
+        (let ((got-screen-pixel (get-screen-pixel *CPU* x y)))
+          (if (= (and bit got-screen-pixel) 1)
+              (begin
+                ;;(printf "collision x:~s, y:~s\n\n" x y)
+                (set-carry-flag *CPU* 1)))
+          (u8vector-set!
+           (vector-ref (cpu-screen-memory *CPU*) y)
+           x
+           (bitwise-xor bit got-screen-pixel))))))
 
 (define (clear-screen *CPU*)
   (let ((ext-len (vector-length (cpu-screen-memory *CPU*)))
@@ -216,24 +230,29 @@
           ((= j int-len) '())
         (u8vector-set! (vector-ref (cpu-screen-memory *CPU*) i) j 0)))))
 
-(define (digit num position)
-  (modulo (quotient num
-                    (expt 10 position))
-          10))
-
 ;; TODO FIXME Err2 CLIPPING sprite wrap
 ;; n = altezza sprite
 (define (draw-sprite *CPU* vx vy n)
+  ;;(printf "DRAW-SPRITE => vx: ~s, vy: ~s, n: ~s\n" vx vy n)
+  (set-carry-flag *CPU* 0)
   (do ((b 0 (add1 b)))
       ((>= (+ b vy) (+ vy n)) #t)
     (let ((bits (bits->vector (get-memory *CPU* (+ b (cpu-I *CPU*))) 8)))
       (do ((a 0 (add1 a)))
           ((>= (+ a vx) (+ vx SPRITE_LENGTH)) #t)
-        (set-screen-pixel *CPU* (+ a vx) (+ b vy) (vector-ref bits (- 7 a)))))))
+        (let ((x (+ a vx))
+              (y (+ b vy)))
+          (set-screen-pixel *CPU* x y (vector-ref bits (- 7 a))))))))
 
 (define (font-location vx)
   (let ((font-length 5))
     (+ 5 (* font-length vx))))
+
+(define (digit num position)
+  (modulo (quotient num
+                    (expt 10 position))
+          10))
+
 
 ;; EMULATOR
 (define (emulate-si instruction *CPU*)
@@ -291,18 +310,21 @@
              (set-register *CPU* X
                            (bitwise-ior (get-register *CPU* X)
                                         (get-register *CPU* Y)))
+             (set-carry-flag *CPU* 0)
              ;(print "V" X " |= V" Y)
              (incr-pc *CPU*))
             (((#x8 4) (X 4) (Y 4) (#x2 4))
              (set-register *CPU* X
                            (bitwise-and (get-register *CPU* X)
                                         (get-register *CPU* Y)))
-             ;(print "V" X " &= V" Y)
+             (set-carry-flag *CPU* 0)
+                                        ;(print "V" X " &= V" Y)
              (incr-pc *CPU*))
             (((#x8 4) (X 4) (Y 4) (#x3 4))
              (set-register *CPU* X
                            (bitwise-xor (get-register *CPU* X)
                                         (get-register *CPU* Y)))
+             (set-carry-flag *CPU* 0)
              ;(print "V" X " ^= V" Y)
              (incr-pc *CPU*))
             (((#x8 4) (X 4) (Y 4) (#x4 4))
@@ -345,7 +367,7 @@
                           (set-carry-flag *CPU* 0))
                    (begin (set-register *CPU* X subtraction)
                           (set-carry-flag *CPU* 1))))
-             (print "V" X " -= V" Y)
+             ;;(print "V" X " -= V" Y)
              (incr-pc *CPU*))
             (((#x8 4) (X  4) (Y 4) (#xE 4))
              (let ((VX (get-register *CPU* X)))
@@ -393,7 +415,7 @@
                )
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x0 4) (#x7 4))
-             (set-register *CPU* X (cpu-delay-timer *CPU*)) ;; TODO implement get_delay
+             (set-register *CPU* X (cpu-delay-timer *CPU*))
              ;;(print "V" X " = get_delay")
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x0 4) (#xA 4))
@@ -408,7 +430,6 @@
                    )
                ))
             (((#xF 4) (X 4) (#x1 4) (#x5 4))
-             ;; TODO implement delay_timer
              (print "delay_timer = V" X)
              (cpu-delay-timer-set! *CPU* (get-register *CPU* X))
              (incr-pc *CPU*))
@@ -446,7 +467,7 @@
             (else
              (bitmatch instruction
                        (((a 4) (b 4) (c 4) (d 4))
-                        (print "[NOT IMPLEMENTED]: " a " " b " " c " " d)
+                        (printf "[NOT IMPLEMENTED] ~s: ~s ~s ~s ~s \n" (cpu-PC *CPU*) a b c d)
                         (exit)
                         )))))
 ;;  The uppermost 256 bytes (0xF00-0xFFF) are reserved for display refresh,
@@ -465,9 +486,12 @@
     (cond
      ((> (cpu-PC *CPU*) (u8vector-length (cpu-memory *CPU*))) (print "END"))
      ((not (cpu-running *CPU*)) (print "CPU not running"))
+     ((cpu-pause *CPU*)
+      (thread-sleep! 0.01) ;; do nothing
+      (iter))
      (else
       (emulate-si (fetch *CPU*) *CPU*)
-      (thread-sleep! 0.002)
+      (thread-sleep! 0.002) ;; 500Hz
       (iter))))
   (iter))
 
