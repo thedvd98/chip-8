@@ -39,7 +39,7 @@
 (define-constant TIMER_START 60)
 
 (define-record cpu
-  memory screen-memory PC SP I registers keys delay-timer sound-timer)
+  memory screen-memory PC SP I registers keys delay-timer sound-timer running)
 
 (define (mem-to-string mem start end)
   (define (iter start end)
@@ -57,23 +57,23 @@
            (tohex (cpu-SP c))
            (tohex (cpu-I c))
            (cpu-registers c)))
+(define (create-screen-memory)
+  (define (loop i li)
+    (if (< i SCREEN_HEIGHT)
+        (loop (+ i 1) (cons (make-u8vector SCREEN_WIDTH 0) li))
+        li
+        ))
+  (loop 0 '()))
+(define (load-fontset-to-memory *CPU*)
+  (define (iter n max)
+    (cond ((>= n max) '())
+          (else
+           (u8vector-set! (cpu-memory *CPU*) n (u8vector-ref fontset n))
+           (iter (+ n 1) max))
+          ))
+  (iter 0 (u8vector-length fontset)))
 
 (define (init-cpu)
-  (define (load-fontset-to-memory *CPU*)
-    (define (iter n max)
-      (cond ((>= n max) '())
-            (else
-             (u8vector-set! (cpu-memory *CPU*) n (u8vector-ref fontset n))
-             (iter (+ n 1) max))
-            ))
-    (iter 0 (u8vector-length fontset)))
-  (define (create-screen-memory)
-    (define (loop i li)
-      (if (< i SCREEN_HEIGHT)
-          (loop (+ i 1) (cons (make-u8vector SCREEN_WIDTH 0) li))
-          li
-          ))
-    (loop 0 '()))
   (let ((memory (make-u8vector 4096 0))
         (screen-memory (list->vector (create-screen-memory)))
         (registers (vector 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))
@@ -82,13 +82,27 @@
         (sp #xEA0)
         (keys (vector #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f))
         (delay_timer 0)
-        (sound_timer 0))
+        (sound_timer 0)
+        (running #t))
     (set-pseudo-random-seed! "djfadjfkjsdafkqpmvb")
     (define *CPU*
-      (make-cpu memory screen-memory pc sp i registers keys delay_timer sound_timer))
+      (make-cpu memory screen-memory pc sp i registers keys delay_timer sound_timer running))
     (load-fontset-to-memory *CPU*)
     *CPU*
     ))
+
+(define (reset c)
+  (cpu-memory-set! c (make-u8vector 4096 0))
+  (cpu-screen-memory-set! c (list->vector (create-screen-memory)))
+  (vector-fill! (cpu-registers c) 0)
+  (cpu-PC-set! c PROGRAM_MEMORY_START)
+  (cpu-I-set! c 0)
+  (cpu-SP-set! c #xEA0)
+  (vector-fill! (cpu-keys c) #f)
+  (cpu-delay-timer-set! c 0)
+  (cpu-sound-timer-set! c 0)
+  (load-fontset-to-memory c)
+  (cpu-running-set! c #t))
 
 (define (vector-index vec value)
   (define (loop i)
@@ -207,6 +221,7 @@
                     (expt 10 position))
           10))
 
+;; TODO FIXME Err2 CLIPPING sprite wrap
 ;; n = altezza sprite
 (define (draw-sprite *CPU* vx vy n)
   (do ((b 0 (add1 b)))
@@ -449,9 +464,10 @@
   (define (iter)
     (cond
      ((> (cpu-PC *CPU*) (u8vector-length (cpu-memory *CPU*))) (print "END"))
+     ((not (cpu-running *CPU*)) (print "CPU not running"))
      (else
       (emulate-si (fetch *CPU*) *CPU*)
-      (thread-sleep! 0.010)
+      (thread-sleep! 0.002)
       (iter))))
   (iter))
 
