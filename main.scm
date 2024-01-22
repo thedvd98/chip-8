@@ -7,8 +7,8 @@
 (include "cpu.scm")
 
 (cond-expand
-  (chicken-4 (use (prefix sdl2 "sdl2:")))
-  (chicken-5 (import (prefix sdl2 "sdl2:"))))
+ (chicken-4 (use (prefix sdl2 "sdl2:")))
+ (chicken-5 (import (prefix sdl2 "sdl2:"))))
 
 ;; for passing to wait-event
 ;; delay-fn must be a procedure which accepts a number of milliseconds to sleep
@@ -77,15 +77,9 @@
 
 (define (main-loop)
   (define event (sdl2:make-event))
-  (define start_time (sdl2:get-ticks))
-  (define septimems 16)
 
   (define window
     (sdl2:create-window! "Chip-8 emulator" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
-
-  (load-program-into-memory "6-keypad.ch8" main-cpu)
-
-
   ;; (let ((n (command-line-arguments)))
   ;;   (print "arguments: " n)
   ;;   (if (> (length n) 0)
@@ -97,7 +91,7 @@
   (let ((done #f)
         (verbose? #f))
     (while (not done)
-           (let ((ev (sdl2:wait-event-timeout! 1 event thread-delay!)))
+           (let ((ev (sdl2:wait-event-timeout! 16 event thread-delay!)))
              (when verbose?
                (print ev))
              (if (sdl2:quit-event? event)
@@ -111,15 +105,23 @@
                   ((a b c d e f)
                    (let ((key (sdl2:keyboard-event-sym-raw event)))
                      (key-up main-cpu (- key 87))
-                     (print (- key 87))))
+                     (print (- key 87))
+                     (thread-sleep! 0.016)
+                     ))
                   ((n-0 n-1 n-2 n-3 n-4 n-5 n-6 n-7 n-8 n-9)
                    (let ((key (sdl2:keyboard-event-sym-raw event)))
                      (key-up main-cpu (- key 48))
-                     (print (- key 48))))))
+                     (print (- key 48)))
+                   (thread-sleep! 0.016)
+                   )))
                ((key-down)
                 (case (sdl2:keyboard-event-sym event)
                   ((escape q)
+                   (cpu-running-set! main-cpu #f)
                    (set! done #t))
+                  ((r)
+                   (reset main-cpu)
+                   (load-program-into-memory "flightrunner.ch8" main-cpu))
                   ((v)
                    (print "verbose"))
                   ((a b c d e f)
@@ -130,21 +132,51 @@
                    (let ((key (sdl2:keyboard-event-sym-raw event)))
                      (key-down main-cpu (- key 48))
                      (print (- key 48))))))))
+           (update-screen window)
+           ))
+  (sdl2:quit!))
+
+(define (emulator-timer)
+  (define start_time (sdl2:get-ticks))
+  (define septimems 60)
+
+  (let ((done #f))
+    (while (and (not done) (cpu-running main-cpu))
            (let ((t (sdl2:get-ticks)))
              (if (>= (- t start_time) septimems)
                  (begin
                    (set! start_time t)
                    (delay-timer main-cpu))))
-           (emulate-instruction main-cpu)
-           (update-screen window)
-           (thread-sleep! 0.005)))
-  (sdl2:quit!))
+           (thread-sleep! 0.0016))))
 
 (define (start-main-loop-in-thread!)
   (*main-loop-thread* (thread-start! main-loop)))
 
-(define *main-loop-thread* (make-parameter #f))
-(main-loop)
+(define (start-emulator-in-thread!)
+  (*emulation-thread* (thread-start! emulator)))
 
-;(start-main-loop-in-thread!)
-;(thread-join! (*main-loop-thread*))
+(define *main-loop-thread* (make-parameter #f))
+(define *emulation-thread* (make-parameter #f))
+(define *timer-thread* (make-parameter #f))
+
+(define (emulator-main)
+  (define (emulator)
+    (emulate main-cpu))
+  ;; (load-program-into-memory "6-keypad.ch8" main-cpu)
+  ;; (load-program-into-memory "PONG" main-cpu)
+  ;;(load-program-into-memory "4-flags.ch8" main-cpu)
+  ;;(load-program-into-memory "3-corax+.ch8" main-cpu)
+  (load-program-into-memory "5-quirks.ch8" main-cpu)
+  ;;(load-program-into-memory "flightrunner.ch8" main-cpu)
+
+  (*main-loop-thread* (thread-start! main-loop))
+  (*emulation-thread* (thread-start! emulator))
+  (*timer-thread* (thread-start! emulator-timer))
+
+  (thread-join! (*main-loop-thread*))
+  (print "main loop ended")
+  (thread-join! (*emulation-thread*))
+  (print "emulation ended")
+  (thread-join! (*timer-thread*))
+  (print "timer ended")
+  )
