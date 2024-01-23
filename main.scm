@@ -4,7 +4,7 @@
         miscmacros)
 (import (chicken process-context)) ;; for command line args
 
-(include "cpu.scm")
+(include "emulator.scm")
 
 (cond-expand
  (chicken-4 (use (prefix sdl2 "sdl2:")))
