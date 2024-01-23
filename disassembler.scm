@@ -1,8 +1,4 @@
-(import bitstring
-        srfi-4
-        (chicken format))
-
-(include "common.scm")
+(include "cpu.scm")
 
 ;; Need an #u8 array o\f two elements e.g. #u8(#x00 #xEE)
 (define (disassemble-si instruction pc)
@@ -22,7 +18,7 @@
             (((#x00E0 16))
              (fmt "cls"))
             (((#x0 4) (address 12)) ;; call machine code at address
-             (fmt "call machine code ~A" (f-addr address)))
+             (fmt "call mc ~A" (f-addr address)))
             (((#x1 4) (address 12)) ;; jump at address
              (fmt "jp ~A" (f-addr address)))
             (((#x2 4) (address 12)) ;; Call subroutine
@@ -93,3 +89,14 @@
                         (fmt "[NOT IMPLEMENTED] ~s ~s ~s ~s \n"  a b c d)
                         )))))
 
+(define (disassemble program-file)
+  (define c (init-cpu))
+  (define (iter size)
+    (cond
+     ((>= (cpu-PC c) (+ PROGRAM_MEMORY_START size)) (print "END"))
+     (else
+      (print (disassemble-si (fetch c) (cpu-PC c)))
+      (incr-pc c)
+      (iter size))))
+  (let ((size(load-program-into-memory program-file c)))
+    (iter size)))
