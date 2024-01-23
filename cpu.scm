@@ -1,5 +1,5 @@
-                                        ;https://wikiMcall-cc.org/eggref/5/bitstring
-;;; http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
+;;https://wikiMcall-cc.org/eggref/5/bitstring
+;; http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
 ;; https://wiki.call-cc.org/man/5/Module%20srfi-4
 
 (import bitstring
@@ -8,9 +8,8 @@
         srfi-4  ;; u8vector
         srfi-151) ;; bitwise opeartions
 
-(define (tohex n)
-  (string-append "0x" (number->string n 16)))
-
+(include "common.scm")
+(include "disassembler.scm")
 
 (define fontset
   #u8(#xf0 #x90 #x90 #x90 #xf0          ; 0
@@ -253,9 +252,10 @@
                     (expt 10 position))
           10))
 
-
 ;; EMULATOR
 (define (emulate-si instruction *CPU*)
+  ;;(print instruction)
+  (print (disassemble-si instruction (cpu-PC *CPU*)))
   (bitmatch instruction
             (((#x00EE 16))
              (let ((addr (pop *CPU*)))
@@ -318,7 +318,7 @@
                            (bitwise-and (get-register *CPU* X)
                                         (get-register *CPU* Y)))
              (set-carry-flag *CPU* 0)
-                                        ;(print "V" X " &= V" Y)
+                            ;(print "V" X " &= V" Y)
              (incr-pc *CPU*))
             (((#x8 4) (X 4) (Y 4) (#x3 4))
              (set-register *CPU* X
@@ -373,8 +373,8 @@
              (let ((VX (get-register *CPU* X)))
                (begin
                       (set-register *CPU* X (bitwise-and (arithmetic-shift VX 1) #xff))
-                      (set-carry-flag *CPU* (bit-field VX 7 8)))
-               (print "V" X " <<= 1"))
+                      (set-carry-flag *CPU* (bit-field VX 7 8))))
+               ;;(print "V" X " <<= 1"))
              (incr-pc *CPU*))
             (((#x9 4) (X  4) (Y 4) (#x0 4))
              (if (not (= (get-register *CPU* X) (get-register *CPU* Y)))
@@ -419,23 +419,23 @@
              ;;(print "V" X " = get_delay")
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x0 4) (#xA 4))
-             (print "WAITNG FOR KEY PRESS")
+             ;;(print "WAITNG FOR KEY PRESS")
              (let ((k (vector-index (cpu-keys *CPU*) #t)))
                (if k
                    (begin
-                     (print "KEY PRESSED V" X " = get_key => " k)
+                     ;;(print "KEY PRESSED V" X " = get_key => " k)
                      (set-register *CPU* X k)
                      (incr-pc *CPU*))
                    '()
                    )
                ))
             (((#xF 4) (X 4) (#x1 4) (#x5 4))
-             (print "delay_timer = V" X)
+             ;;(print "delay_timer = V" X)
              (cpu-delay-timer-set! *CPU* (get-register *CPU* X))
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x1 4) (#x8 4))
              ;; TODO implement sound_timer
-             (print "sound_timer = V" X)
+             ;;(print "sound_timer = V" X)
              (cpu-sound-timer-set! *CPU* (get-register *CPU* X))
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x1 4) (#xE 4))
@@ -445,7 +445,7 @@
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x2 4) (#x9 4))
              (let ((sprite_addr (font-location (get-register *CPU* X))))
-               (print "I = SpriteAddress VX " (get-register *CPU* X) " -> addr: 0x" (tohex sprite_addr)) ;; TODO come funzionano gli sprite
+               ;;(print "I = SpriteAddress VX " (get-register *CPU* X) " -> addr: 0x" (tohex sprite_addr)) ;; TODO come funzionano gli sprite
                (cpu-I-set! *CPU* sprite_addr))
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x3 4) (#x3 4))
@@ -456,7 +456,7 @@
                  (set-memory *CPU* (cpu-I *CPU*) n1)
                  (set-memory *CPU* (+ (cpu-I *CPU*) 1) n2)
                  (set-memory *CPU* (+ (cpu-I *CPU*) 2) n3)))
-             (print "set_BCD V" X)
+             ;;(print "set_BCD V" X)
              (incr-pc *CPU*))
             (((#xF 4) (X 4) (#x5 4) (#x5 4))
              (reg-dump *CPU* X)
