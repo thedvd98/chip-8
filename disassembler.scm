@@ -2,14 +2,14 @@
         srfi-4
         (chicken format))
 
+(include "common.scm")
+
 ;; Need an #u8 array o\f two elements e.g. #u8(#x00 #xEE)
 (define (disassemble-si instruction pc)
   (define (fmt format . args)
     (apply sprintf
            (string-append "0x~X\t" format)
            (cons pc args)))
-  (define (tohex n)
-    (string-append "0x" (number->string n 16)))
   (define (f-const var)
     (tohex var))
   (define (f-reg var)
