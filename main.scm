@@ -44,13 +44,23 @@
 (set! (sdl2:event-state 'finger-motion) #f)
 (set! (sdl2:event-state 'multi-gesture) #f)
 
-(define-constant grid-size 6)
+(define pixel-width 6)
+(define pixel-height 6)
+
+(define (resize-event-handler win-width win-height)
+  (set! pixel-width
+    (round
+      (/ win-width SCREEN_WIDTH)))
+  (set! pixel-height
+    (round
+      (/ win-height SCREEN_HEIGHT)))
+  (print "pixel-width: " pixel-width))
 
 (define (draw-square win x y)
   (sdl2:fill-rect!
    (sdl2:window-surface win)
-   (sdl2:make-rect (* grid-size x) (* grid-size y) grid-size grid-size)  ; Adjust the size (20x20) according to your requirements
-   (sdl2:make-color 255 255 255)))  ; Adjust the color (RGB) as needed
+   (sdl2:make-rect (* pixel-width x) (* pixel-height y) pixel-width pixel-height)
+   (sdl2:make-color 255 255 255)))
 
 (define (draw-grid win mem h w)
   (do ((j 0 (add1 j)))
@@ -134,7 +144,12 @@
                   ((n-0 n-1 n-2 n-3 n-4 n-5 n-6 n-7 n-8 n-9)
                    (let ((key (sdl2:keyboard-event-sym-raw event)))
                      (key-down main-cpu (- key 48))
-                     (print (- key 48))))))))
+                     (print (- key 48))))))
+               ((window)
+                (case (sdl2:window-event-event event)
+                  ((resized)
+                   (resize-event-handler (sdl2:window-event-data1 event) (sdl2:window-event-data2 event)))
+                  ))))
            (update-screen window)
            ))
   (sdl2:quit!))
