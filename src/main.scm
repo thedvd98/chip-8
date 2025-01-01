@@ -1,14 +1,19 @@
 (import (chicken io)
         (chicken format)
         srfi-4 srfi-12 srfi-18
-        miscmacros)
+        miscmacros
+        (chip8 cpu)
+        (chip8 emulator)
+        (chip8 disassembler))
+
 (import (chicken process-context)) ;; for command line args
 
 (include "emulator.scm")
 
-(cond-expand
- (chicken-4 (use (prefix sdl2 "sdl2:")))
- (chicken-5 (import (prefix sdl2 "sdl2:"))))
+;(cond-expand
+; (chicken-4 (use (prefix sdl2 "sdl2:")))
+; (chicken-5 (import (prefix sdl2 "sdl2:"))))
+(import (prefix sdl2 "sdl2:"))
 
 ;; for passing to wait-event
 ;; delay-fn must be a procedure which accepts a number of milliseconds to sleep
