@@ -9,10 +9,12 @@
           (chip8 common)
           (chip8 cpu)
           (chip8 disassembler)
-          srfi-18)
+          srfi-18
+          srfi-151 ;;bit-field
+          )
 
   (define (emulate-si instruction *CPU*)
-    (print (disassemble-si instruction (cpu-PC *CPU*)))
+    ;;(print (disassemble-si instruction (cpu-PC *CPU*)))
     (bitmatch instruction
               (((#x00EE 16))
                (let ((addr (pop *CPU*)))
@@ -202,7 +204,7 @@
                (incr-pc *CPU*))
               (((#xF 4) (X 4) (#x2 4) (#x9 4))
                (let ((sprite_addr (font-location (get-register *CPU* X))))
-                 ;;(print "I = SpriteAddress VX " (get-register *CPU* X) " -> addr: 0x" (tohex sprite_addr)) ;; TODO come funzionano gli sprite
+                 ;;(print "I = SpriteAddress VX " (get-register *CPU* X) " -> addr: 0x" (tohex sprite_addr)) ;; TODO How sprite works?
                  (cpu-I-set! *CPU* sprite_addr))
                (incr-pc *CPU*))
               (((#xF 4) (X 4) (#x3 4) (#x3 4))

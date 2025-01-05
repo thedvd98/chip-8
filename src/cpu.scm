@@ -9,6 +9,7 @@
             cpu-sound-timer-set! cpu-delay-timer-set! set-register vector-index
             cpu-keys cpu-delay-timer key-pressed draw-sprite jump-to set-carry-flag
             push get-pc set-pc clear-screen pop cpu-memory cpu-running cpu-pause
+            get-carry-flag
             )
   (import scheme
           (chicken load)
@@ -146,8 +147,8 @@
 
   (define (set-carry-flag *CPU* val)
     (set-register *CPU* 15 val))
-  (define (get-carry-flag *CPU* val)
-    (get-register *CPU* 15 val))
+  (define (get-carry-flag *CPU*)
+    (get-register *CPU* 15))
 
   (define (set-memory *CPU* pos value)
     (u8vector-set! (cpu-memory *CPU*) pos value))
