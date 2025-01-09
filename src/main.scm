@@ -1,3 +1,11 @@
+(load-relative "common.scm")
+
+(load-relative "cpu.scm")
+
+(load-relative "disassembler.scm")
+
+(load-relative "emulator.scm")
+
 (import (chicken io)
         (chicken format)
         srfi-4 srfi-12 srfi-18
@@ -7,8 +15,6 @@
         (chip8 disassembler))
 
 (import (chicken process-context)) ;; for command line args
-
-(include "emulator.scm")
 
 ;(cond-expand
 ; (chicken-4 (use (prefix sdl2 "sdl2:")))

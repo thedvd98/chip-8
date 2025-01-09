@@ -1,14 +1,11 @@
 ## Install dependencies
 ```
-chicken-install sdl2
-chicken-install srfi-151
-chicken-install srfi-18
-chicken-install miscmacros
-chicken-install bitstring
-
-chicken-install r7rs
-chicken-install test
+chicken-install sdl2 srfi-151 srfi-18 miscmacros bitstring test
 ```
+
+## RUN TESTS
+
+`csi tests/run.scm`
 
 ## RUN
 ```
