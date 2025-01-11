@@ -1,7 +1,6 @@
 (import scheme
         (chicken load)
-        test
-        bitstring)
+        test)
 
 (load-relative "../src/common.scm")
 (import (chip8 common))
@@ -18,7 +17,7 @@
 ;;(load-relative "../src/main.scm")
 
 (test-group
-  "CPU Instructions"
+  "CPU Instructions emulate-si"
    (test 
      "inst ret" #x302 (let ((main-cpu (init-cpu)))
       (begin
@@ -205,6 +204,21 @@
         (begin
           (emulate-si #u8(#xE1 #xA1) cpu)
           (test "pc increment" #x204 (get-pc cpu)))))
+  )
+
+(define-syntax cpu-test
+  (syntax-rules ()
+    ((_ name cpu (setup ...) expected check)
+       (begin
+         (set! cpu (init-cpu))
+         setup ...
+         (test name expected check)
+         ))))
+
+(test-group
+  "CPU module"
+  (cpu-test "fetch nothing" cpu ((load-program-into-memory "tests/rom_empty" cpu)) #u8(#x00 #x00) (fetch cpu))
+  (cpu-test "fetch rom0" cpu ((load-program-into-memory "tests/rom0" cpu)) #u8(#x6a #x02) (fetch cpu))
   )
 
 (test-exit)
