@@ -8,13 +8,22 @@
 
 (import (chicken io)
         (chicken format)
-        srfi-4 srfi-12 srfi-18
+        (chicken port)
+        (chicken load)
+        srfi-4 srfi-18
+        (chicken condition)
         miscmacros
+        args)
+
+(load-relative "common.scm")
+(load-relative "cpu.scm")
+(load-relative "disassembler.scm")
+(load-relative "./emulator.scm")
+
+(import (chicken process-context)
         (chip8 cpu)
         (chip8 emulator)
-        (chip8 disassembler))
-
-(import (chicken process-context)) ;; for command line args
+        (chip8 disassembler)) ;; for command line args
 
 ;(cond-expand
 ; (chicken-4 (use (prefix sdl2 "sdl2:")))
@@ -35,13 +44,14 @@
 (sdl2:init! '(video events)) ;; or whatever init flags your program needs
 
 (on-exit sdl2:quit!)
+
 ;; Call sdl2:quit! and then call the original exception handler if an
 ;; unhandled exception reaches the top level.
-(current-exception-handler
- (let ((original-handler (current-exception-handler)))
-   (lambda (exception)
-     (sdl2:quit!)
-     (original-handler exception))))
+;(current-exception-handler
+; (let ((original-handler (current-exception-handler)))
+;   (lambda (exception)
+;     (sdl2:quit!)
+;     (original-handler exception))))
 
 ;; Install a custom exception handler that will call quit! and then
 ;; call the original exception handler. This ensures that quit! will
@@ -97,19 +107,9 @@
 (define main-cpu (init-cpu))
 
 (define (main-loop)
-  (define event (sdl2:make-event))
-
-  (define window
-    (sdl2:create-window! "Chip-8 emulator" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
-  ;; (let ((n (command-line-arguments)))
-  ;;   (print "arguments: " n)
-  ;;   (if (> (length n) 0)
-  ;;       (let ((filename (car n)))
-  ;;         (load-program-into-memory filename main-cpu))
-  ;;       (load-program-into-memory "6-keypad.ch8" main-cpu)))
-
-
-  (let ((done #f)
+  (let ((event (sdl2:make-event))
+        (window (sdl2:create-window! "Chip-8 emulator" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
+        (done #f)
         (verbose? #f))
     (while (not done)
            (let ((ev (sdl2:wait-event-timeout! 16 event thread-delay!)))
@@ -161,8 +161,7 @@
                   ((resized)
                    (resize-event-handler (sdl2:window-event-data1 event) (sdl2:window-event-data2 event)))
                   ))))
-           (update-screen window)
-           ))
+           (update-screen window)))
   (sdl2:quit!))
 
 (define (emulator-timer)
@@ -188,25 +187,49 @@
 (define *emulation-thread* (make-parameter #f))
 (define *timer-thread* (make-parameter #f))
 
-(define (emulator-main)
-  (define (emulator)
-    (emulate main-cpu))
-  ;; (load-program-into-memory "6-keypad.ch8" main-cpu)
-  ;; (load-program-into-memory "PONG" main-cpu)
-  ;;(load-program-into-memory "4-flags.ch8" main-cpu)
-  ;;(load-program-into-memory "3-corax+.ch8" main-cpu)
-  (load-program-into-memory "5-quirks.ch8" main-cpu)
-  ;;(load-program-into-memory "br8kout.ch8" main-cpu)
-  ;;(load-program-into-memory "flightrunner.ch8" main-cpu)
+(define (emulator-main romfile)
+  (begin
+    (define (emulator)
+      (emulate main-cpu))
 
-  (*main-loop-thread* (thread-start! main-loop))
-  (*emulation-thread* (thread-start! emulator))
-  (*timer-thread* (thread-start! emulator-timer))
 
-  (thread-join! (*main-loop-thread*))
-  (print "main loop ended")
-  (thread-join! (*emulation-thread*))
-  (print "emulation ended")
-  (thread-join! (*timer-thread*))
-  (print "timer ended")
-  )
+    (print "Iinitializing memory..")
+    (condition-case
+      (load-program-into-memory romfile main-cpu)
+      ((exn i/o file) (begin
+                        (print "exn file: error file")
+                        (exit 3)))
+      ((exn i/o) (print "exn i/o: "))
+      (var () (print-error-message var)))
+
+    (print "Starting threads")
+    ;; :( FIXME
+    (*main-loop-thread* (thread-start! main-loop))
+    (*emulation-thread* (thread-start! emulator))
+    (*timer-thread* (thread-start! emulator-timer))
+
+    (thread-join! (*main-loop-thread*))
+    (print "main loop ended")
+    (thread-join! (*emulation-thread*))
+    (print "emulation ended")
+    (thread-join! (*timer-thread*))
+    (print "timer ended")))
+
+(define cmdline-opts
+  (list (args:make-option (i infile)
+			  #:required "chip8 rom file")
+	(args:make-option (h help)
+			  #:none "display this text" (usage))))
+
+(define (usage)
+  (with-output-to-port (current-error-port)
+    (lambda ()
+      (print "Usage: " (car (argv)) " -i infile")
+      (newline)
+      (print (args:usage cmdline-opts))))
+  (exit 1))
+
+(receive (options operands)
+    (args:parse (command-line-arguments) cmdline-opts)
+  (emulator-main (alist-ref 'infile options)))
+
