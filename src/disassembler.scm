@@ -5,7 +5,8 @@
   (disassemble disassemble-si)
   (import scheme
           (chip8 common)
-          (chip8 cpu))
+          (chip8 cpu)
+          bitstring)
 
   ;; Need an #u8 array of two elements e.g. #u8(#x00 #xEE)
   (define (disassemble-si instruction pc)

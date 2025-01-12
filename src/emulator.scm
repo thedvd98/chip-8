@@ -10,11 +10,13 @@
           (chip8 cpu)
           (chip8 disassembler)
           srfi-18
-          srfi-151 ;;bit-field
-          )
+          ;; bit-field
+          srfi-151
+          ;; bitmatch
+          bitstring)
 
   (define (emulate-si instruction *CPU*)
-    ;;(print (disassemble-si instruction (cpu-PC *CPU*)))
+    (print (disassemble-si instruction (cpu-PC *CPU*)))
     (bitmatch instruction
               (((#x00EE 16))
                (let ((addr (pop *CPU*)))

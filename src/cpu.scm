@@ -9,7 +9,8 @@
             cpu-sound-timer-set! cpu-delay-timer-set! set-register vector-index
             cpu-keys cpu-delay-timer key-pressed draw-sprite jump-to set-carry-flag
             push get-pc set-pc clear-screen pop cpu-memory cpu-running cpu-pause
-            get-carry-flag
+            get-carry-flag cpu-screen-memory delay-timer
+            cpu-running-set! SCREEN_HEIGHT SCREEN_WIDTH
             )
   (import scheme
           (chicken load)

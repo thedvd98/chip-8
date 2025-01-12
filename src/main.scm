@@ -199,8 +199,12 @@
       ((exn i/o file) (begin
                         (print "exn file: error file")
                         (exit 3)))
-      ((exn i/o) (print "exn i/o: "))
-      (var () (print-error-message var)))
+      ((exn i/o) (begin
+                  (print "I/O Error")
+                  (exit 3)))
+      (var () (begin
+                (print-error-message var)
+                (exit 3))))
 
     (print "Starting threads")
     ;; :( FIXME
