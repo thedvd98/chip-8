@@ -11,6 +11,7 @@
             push get-pc set-pc clear-screen pop cpu-memory cpu-running cpu-pause
             get-carry-flag cpu-screen-memory delay-timer
             cpu-running-set! SCREEN_HEIGHT SCREEN_WIDTH
+            reset pause unpause key-down key-up
             )
   (import scheme
           (chicken load)

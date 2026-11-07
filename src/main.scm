@@ -106,6 +106,9 @@
 
 (define main-cpu (init-cpu))
 
+;; ROM currently loaded, used by the reset key
+(define current-romfile (make-parameter #f))
+
 (define (main-loop)
   (let ((event (sdl2:make-event))
         (window (sdl2:create-window! "Chip-8 emulator" 'centered 0 WIN_WIDTH WIN_HEIGHT '(shown resizable)))
@@ -144,7 +147,7 @@
                   ((r)
                    (pause main-cpu)
                    (reset main-cpu)
-                   (load-program-into-memory "br8kout.ch8" main-cpu)
+                   (load-program-into-memory (current-romfile) main-cpu)
                    (unpause main-cpu))
                   ((v)
                    (print "verbose"))
@@ -177,23 +180,14 @@
                    (delay-timer main-cpu))))
            (thread-sleep! 0.001))))
 
-(define (start-main-loop-in-thread!)
-  (*main-loop-thread* (thread-start! main-loop)))
-
-(define (start-emulator-in-thread!)
-  (*emulation-thread* (thread-start! emulator)))
-
 (define *main-loop-thread* (make-parameter #f))
 (define *emulation-thread* (make-parameter #f))
 (define *timer-thread* (make-parameter #f))
 
 (define (emulator-main romfile)
   (begin
-    (define (emulator)
-      (emulate main-cpu))
-
-
-    (print "Iinitializing memory..")
+    (current-romfile romfile)
+    (print "Initializing memory..")
     (condition-case
       (load-program-into-memory romfile main-cpu)
       ((exn i/o file) (begin
@@ -207,9 +201,8 @@
                 (exit 3))))
 
     (print "Starting threads")
-    ;; :( FIXME
     (*main-loop-thread* (thread-start! main-loop))
-    (*emulation-thread* (thread-start! emulator))
+    (*emulation-thread* (thread-start! (lambda () (emulate main-cpu))))
     (*timer-thread* (thread-start! emulator-timer))
 
     (thread-join! (*main-loop-thread*))
@@ -235,5 +228,7 @@
 
 (receive (options operands)
     (args:parse (command-line-arguments) cmdline-opts)
-  (emulator-main (alist-ref 'infile options)))
+  (let ((romfile (alist-ref 'infile options)))
+    (unless romfile (usage))
+    (emulator-main romfile)))
 
