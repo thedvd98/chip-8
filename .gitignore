@@ -1,3 +1,4 @@
 # ROMs are tracked on purpose (test programs)
 __handlers__
 main
+.chicken/
